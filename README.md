@@ -16,8 +16,9 @@ Included in this project git are:
 - A Jupyter notebook that I'm currently working on to perform EDA on the given data set.
 - A Tableau Public file for viewing the visuals created for the project
 - Executive summaries of what I have proposed with the gathered data
+- A few of my Advanced SQL practices from my courses
 
-Link to public tableau page
+Link to public tableau page:
 https://public.tableau.com/views/TikTokClaimsProject_17172793409310/Dashboard1?:language=en-US&:sid=&:display_count=n&:origin=viz_share_link
 
 Future additions will include:
@@ -27,4 +28,3 @@ Future additions will include:
 - Regression Models and A/B Testing
 - Statistical sampling methods applied using Jupyter Notebook
 - Machine Learning Model
-- Final Executive summary for ML model
