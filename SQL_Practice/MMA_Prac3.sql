@@ -1,0 +1,1027 @@
+-------------------------------------------------------------------------------------------------
+-- Introduction
+-------------------------------------------------------------------------------------------------
+-- All data necessary for this exercise is provided as part of this script.
+-- Fill in your solution in the provided space.
+-- Executing the entire script should result in rows selected from 5 tables populated from your solution.
+
+-- Mixed Martial Arts academy has various locations around the world.
+-- It is owned by three partners that each has different shares of the company.
+-- The partners share the profit of the business based on their shares.
+
+-- Not all fields may be utilized in this test as there are different variations of this test using the same dataset.
+-- For your efficiency, review the questions first before analyzing the table structure
+-- so that irrelevant data can be skipped.
+
+IF OBJECT_ID('tempdb.dbo.#partners') IS NOT NULL DROP TABLE #partners
+CREATE TABLE #partners
+(
+    OwnerCode NVARCHAR(10)
+    ,OwnerName NVARCHAR(100)
+    ,Share FLOAT
+)
+
+INSERT INTO #partners
+VALUES
+('IPM', 'Ip Man'         , 40)    
+,('CHN', 'Chuck Norris'  , 25)
+,('MHA', 'Muhammad Ali'  , 35);
+
+-- Mixed martial arts academy has its location information stored in below table
+-- Each location has a set monthly membership fee for students in local currency
+IF OBJECT_ID('tempdb.dbo.#locations') IS NOT NULL DROP TABLE #locations
+CREATE TABLE #locations
+(
+    LocationCode NVARCHAR(10)
+    ,LocationName NVARCHAR(100)
+    ,StateCode NVARCHAR(2)
+    ,CountryCode NVARCHAR(3)
+    ,CurrencyCode NVARCHAR(3)
+    ,MonthlyMembershipFee FLOAT
+)
+
+INSERT INTO #locations
+VALUES 
+('RNO', 'Reno', 'NV', 'USA', 'USD', 3200)
+, ('PHX', 'Phoenix', 'AZ', 'USA', 'USD', 3700)
+, ('SAN', 'San Diego', 'CA', 'USA', 'USD', 3900)
+, ('LGB', 'Long Beach', 'CA', 'USA', 'USD', 3700)
+, ('YOW', 'Ottawa', 'ON', 'CAN', 'CAD', 4500)
+, ('YYZ', 'Toronto', 'ON', 'CAN', 'CAD', 5000)
+, ('TAE', 'Daegu', NULL, 'ROK', 'KRW', 6300000)
+, ('BEY', 'Beirut', NULL, 'LEB', 'LBP', 6450000);
+
+-- Following table contains available classes
+IF OBJECT_ID('tempdb.dbo.#classes') IS NOT NULL DROP TABLE #classes
+CREATE TABLE #classes
+(
+    ClassCode NVARCHAR(10)
+    ,ClassDescription NVARCHAR(100)
+)
+
+INSERT INTO #classes
+VALUES 
+('BJJ', 'Brazilian Jiu-Jitsu')
+,('MTH', 'Muay Thai')
+,('KFU', 'Kung Fu')
+,('WRS', 'Wrestling')
+,('NEG', 'Conflict Negotiation')
+,('ESC', 'Escrima/Filipino Stick Fighting') -- 
+,('PSM', 'Possum tactics')
+,('PWR', 'Power Kickboxing')
+,('UFC', 'Octagon Sparring');
+
+-- Following table contains list of instructors and their information
+-- rate and salary are in local currency
+IF OBJECT_ID('tempdb.dbo.#instructors') IS NOT NULL DROP TABLE #instructors
+CREATE TABLE #instructors
+(
+    InstructorCode NVARCHAR(10)
+    ,InstructorName NVARCHAR(100)
+    ,LocationCode NVARCHAR(MAX)
+    ,ClassCodes NVARCHAR(MAX)
+    ,Rate FLOAT -- Rate charged to students per hour on private lessons
+    ,StartYear INT
+    ,Salary FLOAT -- Yearly salary paid to the instructor
+)
+
+INSERT INTO #instructors
+VALUES 
+('TMJ', 'Tom Jones'         , 'RNO', 'KFU;UFC;BJJ'                      , 800       , 2010 , 75000)
+,('JYZ', 'Joe Zoghbi'       , 'PHX', 'NEG;UFC;WRS'                      , 800       , 2016 , 75000)
+,('YSH', 'Soo Yoon'         , 'TAE', 'BJJ;MTH;PSM'                      , 470000    , 2012 , 82000000)
+,('TCH', 'Truman Chan'      , 'RNO', 'BJJ;NEG;ESC;WRS'                  , 400       , 2015 , 75000)
+,('TNG', 'Timmy Ngo'        , 'YYZ', 'BJJ;MTH;KFU;WRS;NEG;UFC;ESC;PWR'  , 900       , 2017 , 100000)
+,('SHM', 'Samer Hamam'      , 'BEY', 'NEG;UFC;BJJ;MTH;WRS'              , 900000    , 2020 , 93000000)
+,('SDN', 'Saad Nahlous'     , 'YOW', 'MTH;UFC;KFU;ESC;PWR'              , 800       , 2019 , 80000)
+,('SZB', 'Suzan Balaa'      , 'LGB', 'NEG;UFC;KFU;WRS'                  , 800       , 2017 , 90000)
+,('RJR', 'Rejane Rizkallah' , 'SAN', 'MTH;UFC;ESC'                      , 800       , 2018 , 53000);
+
+-- Instructors timesheet for 2021 April is provided below.
+-- Private lessons are charged to the student on hourly rate with discount where applicable.
+-- Regular lessons do not have a separate charge.
+IF OBJECT_ID('tempdb.dbo.#timesheet') IS NOT NULL DROP TABLE #timesheet
+CREATE TABLE #timesheet
+(
+    Id INT
+    ,InstructorCode NVARCHAR(5)
+    ,DiscountRate FLOAT -- Contains fee addition/reduction rate.  For example, 0.2 implies 20% reduced fee, -0.3 implies 30% increased fee.  If the instructor's rate is 100, entries with DiscountRate = 0.2 applies 80/hour rate
+    ,WorkDate DATE -- start date of current membership always on 1st of the month
+    ,BaseHours FLOAT -- Number of hours worked
+    ,HoursType NVARCHAR(10) -- 'Private' for private lessons (billed by hour), 'Regular' for regular lessons without additinoal charge
+)
+
+INSERT INTO #timesheet
+SELECT 1, 'TMJ', NULL, '2021-04-01', 3.6, 'Private'
+UNION ALL SELECT 2, 'TMJ', NULL, '2021-04-02', 3.31, 'Private'
+UNION ALL SELECT 3, 'TMJ', -0.2, '2021-04-03', 4.04, 'Private'
+UNION ALL SELECT 4, 'TMJ', 0.4, '2021-04-04', 4.71, 'Private'
+UNION ALL SELECT 5, 'TMJ', 0.3, '2021-04-07', 2.57, 'Private'
+UNION ALL SELECT 6, 'TMJ', NULL, '2021-04-08', 4.29, 'Private'
+UNION ALL SELECT 7, 'TMJ', NULL, '2021-04-09', 3.28, 'Private'
+UNION ALL SELECT 8, 'TMJ', -0.2, '2021-04-10', 3.94, 'Private'
+UNION ALL SELECT 9, 'TMJ', 0.4, '2021-04-11', 3.73, 'Private'
+UNION ALL SELECT 10, 'TMJ', NULL, '2021-04-12', 4.18, 'Private'
+UNION ALL SELECT 11, 'TMJ', NULL, '2021-04-13', 4.12, 'Private'
+UNION ALL SELECT 12, 'TMJ', 0.3, '2021-04-14', 4.55, 'Private'
+UNION ALL SELECT 13, 'TMJ', NULL, '2021-04-15', 2.74, 'Private'
+UNION ALL SELECT 14, 'TMJ', NULL, '2021-04-16', 1.49, 'Private'
+UNION ALL SELECT 15, 'TMJ', 0.4, '2021-04-17', 1.12, 'Private'
+UNION ALL SELECT 16, 'TMJ', 0.2, '2021-04-20', 5.68, 'Private'
+UNION ALL SELECT 17, 'TMJ', 0.1, '2021-04-21', 3.07, 'Private'
+UNION ALL SELECT 18, 'TMJ', 0.3, '2021-04-22', 5.79, 'Private'
+UNION ALL SELECT 19, 'TMJ', NULL, '2021-04-23', 3.15, 'Private'
+UNION ALL SELECT 20, 'TMJ', NULL, '2021-04-24', 1.92, 'Private'
+UNION ALL SELECT 21, 'TMJ', NULL, '2021-04-01', 1.89, 'Regular'
+UNION ALL SELECT 22, 'TMJ', NULL, '2021-04-02', 3, 'Regular'
+UNION ALL SELECT 23, 'TMJ', NULL, '2021-04-03', 2.57, 'Regular'
+UNION ALL SELECT 24, 'TMJ', NULL, '2021-04-04', 1.34, 'Regular'
+UNION ALL SELECT 25, 'TMJ', NULL, '2021-04-07', 1.9, 'Regular'
+UNION ALL SELECT 26, 'TMJ', NULL, '2021-04-08', 2.77, 'Regular'
+UNION ALL SELECT 27, 'TMJ', NULL, '2021-04-09', 3.41, 'Regular'
+UNION ALL SELECT 28, 'TMJ', NULL, '2021-04-10', 2.44, 'Regular'
+UNION ALL SELECT 29, 'TMJ', NULL, '2021-04-11', 2.5, 'Regular'
+UNION ALL SELECT 30, 'TMJ', NULL, '2021-04-12', 3.49, 'Regular'
+UNION ALL SELECT 31, 'TMJ', NULL, '2021-04-13', 1.46, 'Regular'
+UNION ALL SELECT 32, 'TMJ', NULL, '2021-04-14', 3, 'Regular'
+UNION ALL SELECT 33, 'TMJ', NULL, '2021-04-15', 2.12, 'Regular'
+UNION ALL SELECT 34, 'TMJ', NULL, '2021-04-16', 1.05, 'Regular'
+UNION ALL SELECT 35, 'TMJ', NULL, '2021-04-17', 3.5, 'Regular'
+UNION ALL SELECT 36, 'TMJ', NULL, '2021-04-20', 3.46, 'Regular'
+UNION ALL SELECT 37, 'TMJ', NULL, '2021-04-21', 1.75, 'Regular'
+UNION ALL SELECT 38, 'TMJ', NULL, '2021-04-22', 3.13, 'Regular'
+UNION ALL SELECT 39, 'TMJ', NULL, '2021-04-23', 2.91, 'Regular'
+UNION ALL SELECT 40, 'TMJ', NULL, '2021-04-24', 2.07, 'Regular'
+UNION ALL SELECT 41, 'JYZ', NULL, '2021-04-01', 3.13, 'Private'
+UNION ALL SELECT 42, 'JYZ', NULL, '2021-04-02', 2.43, 'Private'
+UNION ALL SELECT 43, 'JYZ', 0.4, '2021-04-03', 1.84, 'Private'
+UNION ALL SELECT 44, 'JYZ', NULL, '2021-04-04', 4.78, 'Private'
+UNION ALL SELECT 45, 'JYZ', -0.1, '2021-04-07', 4.19, 'Private'
+UNION ALL SELECT 46, 'JYZ', 0.3, '2021-04-08', 4.1, 'Private'
+UNION ALL SELECT 47, 'JYZ', NULL, '2021-04-09', 4.44, 'Private'
+UNION ALL SELECT 48, 'JYZ', 0.3, '2021-04-10', 3.28, 'Private'
+UNION ALL SELECT 49, 'JYZ', NULL, '2021-04-11', 2.61, 'Private'
+UNION ALL SELECT 50, 'JYZ', -0.1, '2021-04-12', 4.27, 'Private'
+UNION ALL SELECT 51, 'JYZ', NULL, '2021-04-13', 4.75, 'Private'
+UNION ALL SELECT 52, 'JYZ', NULL, '2021-04-14', 3.34, 'Private'
+UNION ALL SELECT 53, 'JYZ', NULL, '2021-04-15', 3.71, 'Private'
+UNION ALL SELECT 54, 'JYZ', NULL, '2021-04-16', 2.22, 'Private'
+UNION ALL SELECT 55, 'JYZ', NULL, '2021-04-17', 2.63, 'Private'
+UNION ALL SELECT 56, 'JYZ', NULL, '2021-04-20', 2.2, 'Private'
+UNION ALL SELECT 57, 'JYZ', NULL, '2021-04-21', 2.95, 'Private'
+UNION ALL SELECT 58, 'JYZ', NULL, '2021-04-22', 2.21, 'Private'
+UNION ALL SELECT 59, 'JYZ', NULL, '2021-04-23', 4.48, 'Private'
+UNION ALL SELECT 60, 'JYZ', NULL, '2021-04-24', 4, 'Private'
+UNION ALL SELECT 61, 'JYZ', NULL, '2021-04-01', 4.94, 'Regular'
+UNION ALL SELECT 62, 'JYZ', NULL, '2021-04-02', 4.53, 'Regular'
+UNION ALL SELECT 63, 'JYZ', NULL, '2021-04-03', 2.53, 'Regular'
+UNION ALL SELECT 64, 'JYZ', NULL, '2021-04-04', 2.48, 'Regular'
+UNION ALL SELECT 65, 'JYZ', NULL, '2021-04-07', 4.13, 'Regular'
+UNION ALL SELECT 66, 'JYZ', NULL, '2021-04-08', 3.17, 'Regular'
+UNION ALL SELECT 67, 'JYZ', NULL, '2021-04-09', 4.55, 'Regular'
+UNION ALL SELECT 68, 'JYZ', NULL, '2021-04-10', 2.62, 'Regular'
+UNION ALL SELECT 69, 'JYZ', NULL, '2021-04-11', 3.21, 'Regular'
+UNION ALL SELECT 70, 'JYZ', NULL, '2021-04-12', 2.04, 'Regular'
+UNION ALL SELECT 71, 'JYZ', NULL, '2021-04-13', 2.19, 'Regular'
+UNION ALL SELECT 72, 'JYZ', NULL, '2021-04-14', 4.47, 'Regular'
+UNION ALL SELECT 73, 'JYZ', NULL, '2021-04-15', 4.92, 'Regular'
+UNION ALL SELECT 74, 'JYZ', NULL, '2021-04-16', 4.72, 'Regular'
+UNION ALL SELECT 75, 'JYZ', NULL, '2021-04-17', 2.23, 'Regular'
+UNION ALL SELECT 76, 'JYZ', NULL, '2021-04-20', 2.58, 'Regular'
+UNION ALL SELECT 77, 'JYZ', NULL, '2021-04-21', 3.32, 'Regular'
+UNION ALL SELECT 78, 'JYZ', NULL, '2021-04-22', 2.18, 'Regular'
+UNION ALL SELECT 79, 'JYZ', NULL, '2021-04-23', 3.84, 'Regular'
+UNION ALL SELECT 80, 'JYZ', NULL, '2021-04-24', 2.92, 'Regular'
+UNION ALL SELECT 81, 'YSH', NULL, '2021-04-01', 2.23, 'Private'
+UNION ALL SELECT 82, 'YSH', -0.2, '2021-04-02', 2.86, 'Private'
+UNION ALL SELECT 83, 'YSH', 0.4, '2021-04-03', 3.23, 'Private'
+UNION ALL SELECT 84, 'YSH', NULL, '2021-04-04', 4.92, 'Private'
+UNION ALL SELECT 85, 'YSH', NULL, '2021-04-07', 2.89, 'Private'
+UNION ALL SELECT 86, 'YSH', NULL, '2021-04-08', 3.8, 'Private'
+UNION ALL SELECT 87, 'YSH', 0.1, '2021-04-09', 4.7, 'Private'
+UNION ALL SELECT 88, 'YSH', NULL, '2021-04-10', 3.46, 'Private'
+UNION ALL SELECT 89, 'YSH', NULL, '2021-04-11', 2.36, 'Private'
+UNION ALL SELECT 90, 'YSH', NULL, '2021-04-12', 3.95, 'Private'
+UNION ALL SELECT 91, 'YSH', 0.3, '2021-04-13', 4.31, 'Private'
+UNION ALL SELECT 92, 'YSH', NULL, '2021-04-14', 3.67, 'Private'
+UNION ALL SELECT 93, 'YSH', NULL, '2021-04-15', 3.28, 'Private'
+UNION ALL SELECT 94, 'YSH', NULL, '2021-04-16', 4, 'Private'
+UNION ALL SELECT 95, 'YSH', NULL, '2021-04-17', 3.82, 'Private'
+UNION ALL SELECT 96, 'YSH', NULL, '2021-04-20', 4.08, 'Private'
+UNION ALL SELECT 97, 'YSH', NULL, '2021-04-21', 2.29, 'Private'
+UNION ALL SELECT 98, 'YSH', NULL, '2021-04-22', 4.64, 'Private'
+UNION ALL SELECT 99, 'YSH', NULL, '2021-04-23', 3.14, 'Private'
+UNION ALL SELECT 100, 'YSH', NULL, '2021-04-24', 3.61, 'Private'
+UNION ALL SELECT 101, 'YSH', NULL, '2021-04-01', 3.11, 'Regular'
+UNION ALL SELECT 102, 'YSH', NULL, '2021-04-02', 3.64, 'Regular'
+UNION ALL SELECT 103, 'YSH', NULL, '2021-04-03', 4.09, 'Regular'
+UNION ALL SELECT 104, 'YSH', NULL, '2021-04-04', 2.81, 'Regular'
+UNION ALL SELECT 105, 'YSH', NULL, '2021-04-07', 2.78, 'Regular'
+UNION ALL SELECT 106, 'YSH', NULL, '2021-04-08', 3.24, 'Regular'
+UNION ALL SELECT 107, 'YSH', NULL, '2021-04-09', 4.57, 'Regular'
+UNION ALL SELECT 108, 'YSH', NULL, '2021-04-10', 2.39, 'Regular'
+UNION ALL SELECT 109, 'YSH', NULL, '2021-04-11', 4.27, 'Regular'
+UNION ALL SELECT 110, 'YSH', NULL, '2021-04-12', 3.17, 'Regular'
+UNION ALL SELECT 111, 'YSH', NULL, '2021-04-13', 3.54, 'Regular'
+UNION ALL SELECT 112, 'YSH', NULL, '2021-04-14', 4.41, 'Regular'
+UNION ALL SELECT 113, 'YSH', NULL, '2021-04-15', 2.99, 'Regular'
+UNION ALL SELECT 114, 'YSH', NULL, '2021-04-16', 4.87, 'Regular'
+UNION ALL SELECT 115, 'YSH', NULL, '2021-04-17', 3.76, 'Regular'
+UNION ALL SELECT 116, 'YSH', NULL, '2021-04-20', 3.48, 'Regular'
+UNION ALL SELECT 117, 'YSH', NULL, '2021-04-21', 2.04, 'Regular'
+UNION ALL SELECT 118, 'YSH', NULL, '2021-04-22', 4.56, 'Regular'
+UNION ALL SELECT 119, 'YSH', NULL, '2021-04-23', 2.64, 'Regular'
+UNION ALL SELECT 120, 'YSH', NULL, '2021-04-24', 2.66, 'Regular'
+UNION ALL SELECT 121, 'TCH', NULL, '2021-04-01', 4.24, 'Private'
+UNION ALL SELECT 122, 'TCH', NULL, '2021-04-02', 7.25, 'Private'
+UNION ALL SELECT 123, 'TCH', NULL, '2021-04-03', 6.5, 'Private'
+UNION ALL SELECT 124, 'TCH', NULL, '2021-04-04', 5.85, 'Private'
+UNION ALL SELECT 125, 'TCH', NULL, '2021-04-07', 5.32, 'Private'
+UNION ALL SELECT 126, 'TCH', 0.4, '2021-04-08', 7.42, 'Private'
+UNION ALL SELECT 127, 'TCH', 0.1, '2021-04-09', 3.5, 'Private'
+UNION ALL SELECT 128, 'TCH', NULL, '2021-04-10', 6.14, 'Private'
+UNION ALL SELECT 129, 'TCH', 0.2, '2021-04-11', 7.14, 'Private'
+UNION ALL SELECT 130, 'TCH', NULL, '2021-04-12', 5.32, 'Private'
+UNION ALL SELECT 131, 'TCH', NULL, '2021-04-13', 7.36, 'Private'
+UNION ALL SELECT 132, 'TCH', 0.1, '2021-04-14', 6.45, 'Private'
+UNION ALL SELECT 133, 'TCH', NULL, '2021-04-15', 5.07, 'Private'
+UNION ALL SELECT 134, 'TCH', 0.1, '2021-04-16', 4.16, 'Private'
+UNION ALL SELECT 135, 'TCH', NULL, '2021-04-17', 6.45, 'Private'
+UNION ALL SELECT 136, 'TCH', NULL, '2021-04-20', 3.79, 'Private'
+UNION ALL SELECT 137, 'TCH', NULL, '2021-04-21', 3.65, 'Private'
+UNION ALL SELECT 138, 'TCH', NULL, '2021-04-22', 6.27, 'Private'
+UNION ALL SELECT 139, 'TCH', NULL, '2021-04-23', 5.23, 'Private'
+UNION ALL SELECT 140, 'TCH', 0.4, '2021-04-24', 4.24, 'Private'
+UNION ALL SELECT 141, 'TCH', NULL, '2021-04-01', 3.88, 'Regular'
+UNION ALL SELECT 142, 'TCH', NULL, '2021-04-02', 3.16, 'Regular'
+UNION ALL SELECT 143, 'TCH', NULL, '2021-04-03', 4.12, 'Regular'
+UNION ALL SELECT 144, 'TCH', NULL, '2021-04-04', 4.35, 'Regular'
+UNION ALL SELECT 145, 'TCH', NULL, '2021-04-07', 4.22, 'Regular'
+UNION ALL SELECT 146, 'TCH', NULL, '2021-04-08', 4.75, 'Regular'
+UNION ALL SELECT 147, 'TCH', NULL, '2021-04-09', 4.88, 'Regular'
+UNION ALL SELECT 148, 'TCH', NULL, '2021-04-10', 5.26, 'Regular'
+UNION ALL SELECT 149, 'TCH', NULL, '2021-04-11', 1.97, 'Regular'
+UNION ALL SELECT 150, 'TCH', NULL, '2021-04-12', 1.74, 'Regular'
+UNION ALL SELECT 151, 'TCH', NULL, '2021-04-13', 5.35, 'Regular'
+UNION ALL SELECT 152, 'TCH', NULL, '2021-04-14', 5.17, 'Regular'
+UNION ALL SELECT 153, 'TCH', NULL, '2021-04-15', 2.2, 'Regular'
+UNION ALL SELECT 154, 'TCH', NULL, '2021-04-16', 3.59, 'Regular'
+UNION ALL SELECT 155, 'TCH', NULL, '2021-04-17', 1.07, 'Regular'
+UNION ALL SELECT 156, 'TCH', NULL, '2021-04-20', 5.25, 'Regular'
+UNION ALL SELECT 157, 'TCH', NULL, '2021-04-21', 1.57, 'Regular'
+UNION ALL SELECT 158, 'TCH', NULL, '2021-04-22', 4.59, 'Regular'
+UNION ALL SELECT 159, 'TCH', NULL, '2021-04-23', 5.38, 'Regular'
+UNION ALL SELECT 160, 'TCH', NULL, '2021-04-24', 1.02, 'Regular'
+UNION ALL SELECT 161, 'TNG', 0.3, '2021-04-01', 2.1, 'Private'
+UNION ALL SELECT 162, 'TNG', 0.4, '2021-04-02', 4.19, 'Private'
+UNION ALL SELECT 163, 'TNG', -0.1, '2021-04-03', 5.6, 'Private'
+UNION ALL SELECT 164, 'TNG', -0.2, '2021-04-04', 4.26, 'Private'
+UNION ALL SELECT 165, 'TNG', 0.3, '2021-04-07', 5.52, 'Private'
+UNION ALL SELECT 166, 'TNG', NULL, '2021-04-08', 5.44, 'Private'
+UNION ALL SELECT 167, 'TNG', 0.3, '2021-04-09', 1.94, 'Private'
+UNION ALL SELECT 168, 'TNG', NULL, '2021-04-10', 2.23, 'Private'
+UNION ALL SELECT 169, 'TNG', -0.2, '2021-04-11', 4.15, 'Private'
+UNION ALL SELECT 170, 'TNG', NULL, '2021-04-12', 5.05, 'Private'
+UNION ALL SELECT 171, 'TNG', 0.3, '2021-04-13', 2.21, 'Private'
+UNION ALL SELECT 172, 'TNG', -0.2, '2021-04-14', 1.78, 'Private'
+UNION ALL SELECT 173, 'TNG', NULL, '2021-04-15', 1.62, 'Private'
+UNION ALL SELECT 174, 'TNG', -0.1, '2021-04-16', 2.02, 'Private'
+UNION ALL SELECT 175, 'TNG', NULL, '2021-04-17', 4.75, 'Private'
+UNION ALL SELECT 176, 'TNG', NULL, '2021-04-20', 2.9, 'Private'
+UNION ALL SELECT 177, 'TNG', -0.1, '2021-04-21', 5.86, 'Private'
+UNION ALL SELECT 178, 'TNG', -0.1, '2021-04-22', 3.79, 'Private'
+UNION ALL SELECT 179, 'TNG', NULL, '2021-04-23', 2.92, 'Private'
+UNION ALL SELECT 180, 'TNG', NULL, '2021-04-24', 1.81, 'Private'
+UNION ALL SELECT 181, 'TNG', NULL, '2021-04-01', 1.17, 'Regular'
+UNION ALL SELECT 182, 'TNG', NULL, '2021-04-02', 3.5, 'Regular'
+UNION ALL SELECT 183, 'TNG', NULL, '2021-04-03', 5.34, 'Regular'
+UNION ALL SELECT 184, 'TNG', NULL, '2021-04-04', 2.93, 'Regular'
+UNION ALL SELECT 185, 'TNG', NULL, '2021-04-07', 1.1, 'Regular'
+UNION ALL SELECT 186, 'TNG', NULL, '2021-04-08', 1.99, 'Regular'
+UNION ALL SELECT 187, 'TNG', NULL, '2021-04-09', 3, 'Regular'
+UNION ALL SELECT 188, 'TNG', NULL, '2021-04-10', 4.43, 'Regular'
+UNION ALL SELECT 189, 'TNG', NULL, '2021-04-11', 1.92, 'Regular'
+UNION ALL SELECT 190, 'TNG', NULL, '2021-04-12', 4.21, 'Regular'
+UNION ALL SELECT 191, 'TNG', NULL, '2021-04-13', 2.92, 'Regular'
+UNION ALL SELECT 192, 'TNG', NULL, '2021-04-14', 4.01, 'Regular'
+UNION ALL SELECT 193, 'TNG', NULL, '2021-04-15', 4.13, 'Regular'
+UNION ALL SELECT 194, 'TNG', NULL, '2021-04-16', 2.18, 'Regular'
+UNION ALL SELECT 195, 'TNG', NULL, '2021-04-17', 2.54, 'Regular'
+UNION ALL SELECT 196, 'TNG', NULL, '2021-04-20', 3.11, 'Regular'
+UNION ALL SELECT 197, 'TNG', NULL, '2021-04-21', 4.87, 'Regular'
+UNION ALL SELECT 198, 'TNG', NULL, '2021-04-22', 2.22, 'Regular'
+UNION ALL SELECT 199, 'TNG', NULL, '2021-04-23', 1.5, 'Regular'
+UNION ALL SELECT 200, 'TNG', NULL, '2021-04-24', 5.24, 'Regular'
+UNION ALL SELECT 201, 'SHM', NULL, '2021-04-01', 4.13, 'Private'
+UNION ALL SELECT 202, 'SHM', -0.2, '2021-04-02', 2.54, 'Private'
+UNION ALL SELECT 203, 'SHM', NULL, '2021-04-03', 3.69, 'Private'
+UNION ALL SELECT 204, 'SHM', 0.1, '2021-04-04', 4.13, 'Private'
+UNION ALL SELECT 205, 'SHM', NULL, '2021-04-07', 3.68, 'Private'
+UNION ALL SELECT 206, 'SHM', NULL, '2021-04-08', 4.39, 'Private'
+UNION ALL SELECT 207, 'SHM', 0.2, '2021-04-09', 2.01, 'Private'
+UNION ALL SELECT 208, 'SHM', NULL, '2021-04-10', 4.58, 'Private'
+UNION ALL SELECT 209, 'SHM', NULL, '2021-04-11', 2.59, 'Private'
+UNION ALL SELECT 210, 'SHM', NULL, '2021-04-12', 4.93, 'Private'
+UNION ALL SELECT 211, 'SHM', NULL, '2021-04-13', 3.29, 'Private'
+UNION ALL SELECT 212, 'SHM', NULL, '2021-04-14', 3.43, 'Private'
+UNION ALL SELECT 213, 'SHM', NULL, '2021-04-15', 3.14, 'Private'
+UNION ALL SELECT 214, 'SHM', NULL, '2021-04-16', 4.87, 'Private'
+UNION ALL SELECT 215, 'SHM', NULL, '2021-04-17', 2.9, 'Private'
+UNION ALL SELECT 216, 'SHM', NULL, '2021-04-20', 3.6, 'Private'
+UNION ALL SELECT 217, 'SHM', NULL, '2021-04-21', 4.61, 'Private'
+UNION ALL SELECT 218, 'SHM', 0.1, '2021-04-22', 2.6, 'Private'
+UNION ALL SELECT 219, 'SHM', -0.2, '2021-04-23', 2.02, 'Private'
+UNION ALL SELECT 220, 'SHM', NULL, '2021-04-24', 4.25, 'Private'
+UNION ALL SELECT 221, 'SHM', NULL, '2021-04-01', 6.66, 'Regular'
+UNION ALL SELECT 222, 'SHM', NULL, '2021-04-02', 6.53, 'Regular'
+UNION ALL SELECT 223, 'SHM', NULL, '2021-04-03', 4.38, 'Regular'
+UNION ALL SELECT 224, 'SHM', NULL, '2021-04-04', 5.17, 'Regular'
+UNION ALL SELECT 225, 'SHM', NULL, '2021-04-07', 6.1, 'Regular'
+UNION ALL SELECT 226, 'SHM', NULL, '2021-04-08', 8.65, 'Regular'
+UNION ALL SELECT 227, 'SHM', NULL, '2021-04-09', 7.86, 'Regular'
+UNION ALL SELECT 228, 'SHM', NULL, '2021-04-10', 5.01, 'Regular'
+UNION ALL SELECT 229, 'SHM', NULL, '2021-04-11', 4.58, 'Regular'
+UNION ALL SELECT 230, 'SHM', NULL, '2021-04-12', 4.48, 'Regular'
+UNION ALL SELECT 231, 'SHM', NULL, '2021-04-13', 6.73, 'Regular'
+UNION ALL SELECT 232, 'SHM', NULL, '2021-04-14', 8.82, 'Regular'
+UNION ALL SELECT 233, 'SHM', NULL, '2021-04-15', 5.61, 'Regular'
+UNION ALL SELECT 234, 'SHM', NULL, '2021-04-16', 4.08, 'Regular'
+UNION ALL SELECT 235, 'SHM', NULL, '2021-04-17', 7.73, 'Regular'
+UNION ALL SELECT 236, 'SHM', NULL, '2021-04-20', 5.57, 'Regular'
+UNION ALL SELECT 237, 'SHM', NULL, '2021-04-21', 8.33, 'Regular'
+UNION ALL SELECT 238, 'SHM', NULL, '2021-04-22', 8.01, 'Regular'
+UNION ALL SELECT 239, 'SHM', NULL, '2021-04-23', 6.99, 'Regular'
+UNION ALL SELECT 240, 'SHM', NULL, '2021-04-24', 7.84, 'Regular'
+UNION ALL SELECT 241, 'SDN', NULL, '2021-04-01', 4.7, 'Private'
+UNION ALL SELECT 242, 'SDN', 0.3, '2021-04-02', 2.02, 'Private'
+UNION ALL SELECT 243, 'SDN', 0.3, '2021-04-03', 4.45, 'Private'
+UNION ALL SELECT 244, 'SDN', NULL, '2021-04-04', 3.02, 'Private'
+UNION ALL SELECT 245, 'SDN', NULL, '2021-04-07', 3.46, 'Private'
+UNION ALL SELECT 246, 'SDN', NULL, '2021-04-08', 4.24, 'Private'
+UNION ALL SELECT 247, 'SDN', -0.2, '2021-04-09', 3.44, 'Private'
+UNION ALL SELECT 248, 'SDN', -0.1, '2021-04-10', 3.63, 'Private'
+UNION ALL SELECT 249, 'SDN', 0.1, '2021-04-11', 2.57, 'Private'
+UNION ALL SELECT 250, 'SDN', NULL, '2021-04-12', 4.15, 'Private'
+UNION ALL SELECT 251, 'SDN', -0.1, '2021-04-13', 4.16, 'Private'
+UNION ALL SELECT 252, 'SDN', NULL, '2021-04-14', 3.61, 'Private'
+UNION ALL SELECT 253, 'SDN', NULL, '2021-04-15', 4.1, 'Private'
+UNION ALL SELECT 254, 'SDN', NULL, '2021-04-16', 2.36, 'Private'
+UNION ALL SELECT 255, 'SDN', NULL, '2021-04-17', 3.87, 'Private'
+UNION ALL SELECT 256, 'SDN', NULL, '2021-04-20', 4.37, 'Private'
+UNION ALL SELECT 257, 'SDN', NULL, '2021-04-21', 2.28, 'Private'
+UNION ALL SELECT 258, 'SDN', NULL, '2021-04-22', 3.65, 'Private'
+UNION ALL SELECT 259, 'SDN', 0.2, '2021-04-23', 4.73, 'Private'
+UNION ALL SELECT 260, 'SDN', NULL, '2021-04-24', 3.52, 'Private'
+UNION ALL SELECT 261, 'SDN', NULL, '2021-04-01', 3.86, 'Regular'
+UNION ALL SELECT 262, 'SDN', NULL, '2021-04-02', 3.32, 'Regular'
+UNION ALL SELECT 263, 'SDN', NULL, '2021-04-03', 4.02, 'Regular'
+UNION ALL SELECT 264, 'SDN', NULL, '2021-04-04', 2.17, 'Regular'
+UNION ALL SELECT 265, 'SDN', NULL, '2021-04-07', 4.01, 'Regular'
+UNION ALL SELECT 266, 'SDN', NULL, '2021-04-08', 2.63, 'Regular'
+UNION ALL SELECT 267, 'SDN', NULL, '2021-04-09', 4.42, 'Regular'
+UNION ALL SELECT 268, 'SDN', NULL, '2021-04-10', 4.07, 'Regular'
+UNION ALL SELECT 269, 'SDN', NULL, '2021-04-11', 2.14, 'Regular'
+UNION ALL SELECT 270, 'SDN', NULL, '2021-04-12', 2.19, 'Regular'
+UNION ALL SELECT 271, 'SDN', NULL, '2021-04-13', 2.46, 'Regular'
+UNION ALL SELECT 272, 'SDN', NULL, '2021-04-14', 3, 'Regular'
+UNION ALL SELECT 273, 'SDN', NULL, '2021-04-15', 4.33, 'Regular'
+UNION ALL SELECT 274, 'SDN', NULL, '2021-04-16', 4.62, 'Regular'
+UNION ALL SELECT 275, 'SDN', NULL, '2021-04-17', 2.81, 'Regular'
+UNION ALL SELECT 276, 'SDN', NULL, '2021-04-20', 3.34, 'Regular'
+UNION ALL SELECT 277, 'SDN', NULL, '2021-04-21', 4.92, 'Regular'
+UNION ALL SELECT 278, 'SDN', NULL, '2021-04-22', 4.76, 'Regular'
+UNION ALL SELECT 279, 'SDN', NULL, '2021-04-23', 3.45, 'Regular'
+UNION ALL SELECT 280, 'SDN', NULL, '2021-04-24', 4.69, 'Regular'
+UNION ALL SELECT 281, 'SZB', 0.3, '2021-04-01', 2.99, 'Private'
+UNION ALL SELECT 282, 'SZB', -0.1, '2021-04-02', 4.6, 'Private'
+UNION ALL SELECT 283, 'SZB', -0.1, '2021-04-03', 2.63, 'Private'
+UNION ALL SELECT 284, 'SZB', 0.4, '2021-04-04', 4.69, 'Private'
+UNION ALL SELECT 285, 'SZB', NULL, '2021-04-07', 4.11, 'Private'
+UNION ALL SELECT 286, 'SZB', 0.3, '2021-04-08', 3.89, 'Private'
+UNION ALL SELECT 287, 'SZB', -0.1, '2021-04-09', 3.15, 'Private'
+UNION ALL SELECT 288, 'SZB', 0.4, '2021-04-10', 4.71, 'Private'
+UNION ALL SELECT 289, 'SZB', 0.4, '2021-04-11', 4.74, 'Private'
+UNION ALL SELECT 290, 'SZB', NULL, '2021-04-12', 2.72, 'Private'
+UNION ALL SELECT 291, 'SZB', NULL, '2021-04-13', 3.12, 'Private'
+UNION ALL SELECT 292, 'SZB', NULL, '2021-04-14', 4.92, 'Private'
+UNION ALL SELECT 293, 'SZB', NULL, '2021-04-15', 2.43, 'Private'
+UNION ALL SELECT 294, 'SZB', NULL, '2021-04-16', 3, 'Private'
+UNION ALL SELECT 295, 'SZB', NULL, '2021-04-17', 4.98, 'Private'
+UNION ALL SELECT 296, 'SZB', 0.1, '2021-04-20', 4.55, 'Private'
+UNION ALL SELECT 297, 'SZB', 0.4, '2021-04-21', 2.3, 'Private'
+UNION ALL SELECT 298, 'SZB', NULL, '2021-04-22', 4.59, 'Private'
+UNION ALL SELECT 299, 'SZB', NULL, '2021-04-23', 2.75, 'Private'
+UNION ALL SELECT 300, 'SZB', NULL, '2021-04-24', 4.58, 'Private'
+UNION ALL SELECT 301, 'SZB', NULL, '2021-04-01', 2.02, 'Regular'
+UNION ALL SELECT 302, 'SZB', NULL, '2021-04-02', 3.44, 'Regular'
+UNION ALL SELECT 303, 'SZB', NULL, '2021-04-03', 4.2, 'Regular'
+UNION ALL SELECT 304, 'SZB', NULL, '2021-04-04', 2.43, 'Regular'
+UNION ALL SELECT 305, 'SZB', NULL, '2021-04-07', 2.68, 'Regular'
+UNION ALL SELECT 306, 'SZB', NULL, '2021-04-08', 3.79, 'Regular'
+UNION ALL SELECT 307, 'SZB', NULL, '2021-04-09', 2.35, 'Regular'
+UNION ALL SELECT 308, 'SZB', NULL, '2021-04-10', 2.42, 'Regular'
+UNION ALL SELECT 309, 'SZB', NULL, '2021-04-11', 3.42, 'Regular'
+UNION ALL SELECT 310, 'SZB', NULL, '2021-04-12', 2.67, 'Regular'
+UNION ALL SELECT 311, 'SZB', NULL, '2021-04-13', 3.65, 'Regular'
+UNION ALL SELECT 312, 'SZB', NULL, '2021-04-14', 4.86, 'Regular'
+UNION ALL SELECT 313, 'SZB', NULL, '2021-04-15', 2.89, 'Regular'
+UNION ALL SELECT 314, 'SZB', NULL, '2021-04-16', 4.8, 'Regular'
+UNION ALL SELECT 315, 'SZB', NULL, '2021-04-17', 4.27, 'Regular'
+UNION ALL SELECT 316, 'SZB', NULL, '2021-04-20', 4.57, 'Regular'
+UNION ALL SELECT 317, 'SZB', NULL, '2021-04-21', 3, 'Regular'
+UNION ALL SELECT 318, 'SZB', NULL, '2021-04-22', 4.76, 'Regular'
+UNION ALL SELECT 319, 'SZB', NULL, '2021-04-23', 3.78, 'Regular'
+UNION ALL SELECT 320, 'SZB', NULL, '2021-04-24', 4.09, 'Regular'
+UNION ALL SELECT 321, 'RJR', NULL, '2021-04-01', 4.44, 'Private'
+UNION ALL SELECT 322, 'RJR', NULL, '2021-04-02', 2.71, 'Private'
+UNION ALL SELECT 323, 'RJR', NULL, '2021-04-03', 2.26, 'Private'
+UNION ALL SELECT 324, 'RJR', 0.1, '2021-04-04', 2.66, 'Private'
+UNION ALL SELECT 325, 'RJR', -0.1, '2021-04-07', 3.78, 'Private'
+UNION ALL SELECT 326, 'RJR', NULL, '2021-04-08', 2.55, 'Private'
+UNION ALL SELECT 327, 'RJR', NULL, '2021-04-09', 4.77, 'Private'
+UNION ALL SELECT 328, 'RJR', NULL, '2021-04-10', 3.71, 'Private'
+UNION ALL SELECT 329, 'RJR', -0.1, '2021-04-11', 4.63, 'Private'
+UNION ALL SELECT 330, 'RJR', 0.3, '2021-04-12', 4.06, 'Private'
+UNION ALL SELECT 331, 'RJR', NULL, '2021-04-13', 2.38, 'Private'
+UNION ALL SELECT 332, 'RJR', -0.1, '2021-04-14', 4.07, 'Private'
+UNION ALL SELECT 333, 'RJR', NULL, '2021-04-15', 2.16, 'Private'
+UNION ALL SELECT 334, 'RJR', NULL, '2021-04-16', 4.34, 'Private'
+UNION ALL SELECT 335, 'RJR', 0.1, '2021-04-17', 4.4, 'Private'
+UNION ALL SELECT 336, 'RJR', -0.2, '2021-04-20', 4.47, 'Private'
+UNION ALL SELECT 337, 'RJR', 0.3, '2021-04-21', 4.72, 'Private'
+UNION ALL SELECT 338, 'RJR', NULL, '2021-04-22', 4.62, 'Private'
+UNION ALL SELECT 339, 'RJR', 0.4, '2021-04-23', 3.92, 'Private'
+UNION ALL SELECT 340, 'RJR', NULL, '2021-04-24', 3.04, 'Private'
+UNION ALL SELECT 341, 'RJR', NULL, '2021-04-01', 3.99, 'Regular'
+UNION ALL SELECT 342, 'RJR', NULL, '2021-04-02', 2.76, 'Regular'
+UNION ALL SELECT 343, 'RJR', NULL, '2021-04-03', 4.92, 'Regular'
+UNION ALL SELECT 344, 'RJR', NULL, '2021-04-04', 4.89, 'Regular'
+UNION ALL SELECT 345, 'RJR', NULL, '2021-04-07', 5.32, 'Regular'
+UNION ALL SELECT 346, 'RJR', NULL, '2021-04-08', 2.58, 'Regular'
+UNION ALL SELECT 347, 'RJR', NULL, '2021-04-09', 1.46, 'Regular'
+UNION ALL SELECT 348, 'RJR', NULL, '2021-04-10', 2.68, 'Regular'
+UNION ALL SELECT 349, 'RJR', NULL, '2021-04-11', 6.7, 'Regular'
+UNION ALL SELECT 350, 'RJR', NULL, '2021-04-12', 4.43, 'Regular'
+UNION ALL SELECT 351, 'RJR', NULL, '2021-04-13', 6.67, 'Regular'
+UNION ALL SELECT 352, 'RJR', NULL, '2021-04-14', 4.71, 'Regular'
+UNION ALL SELECT 353, 'RJR', NULL, '2021-04-15', 5.67, 'Regular'
+UNION ALL SELECT 354, 'RJR', NULL, '2021-04-16', 5.84, 'Regular'
+UNION ALL SELECT 355, 'RJR', NULL, '2021-04-17', 3.34, 'Regular'
+UNION ALL SELECT 356, 'RJR', NULL, '2021-04-20', 3.3, 'Regular'
+UNION ALL SELECT 357, 'RJR', NULL, '2021-04-21', 6.03, 'Regular'
+UNION ALL SELECT 358, 'RJR', NULL, '2021-04-22', 6.72, 'Regular'
+UNION ALL SELECT 359, 'RJR', NULL, '2021-04-23', 2.88, 'Regular'
+UNION ALL SELECT 360, 'RJR', NULL, '2021-04-24', 3.15, 'Regular'
+
+-- below table contains exchange rate for currencies 
+-- USD is the system currency (USD=1.0000)
+IF OBJECT_ID('tempdb.dbo.#fxrate') IS NOT NULL DROP TABLE #fxrate
+CREATE TABLE #fxrate
+(
+    EffectiveDate DATETIME
+    ,Rate FLOAT
+    ,CurrencyCode NVARCHAR(3)
+)
+-- insert fxrate lookup
+INSERT INTO #fxrate
+SELECT '2020-12-28', 1.2727, 'CAD' 
+UNION ALL SELECT '2021-01-04', 1.2683, 'CAD' 
+UNION ALL SELECT '2021-01-11', 1.2732, 'CAD' 
+UNION ALL SELECT '2021-01-18', 1.2735, 'CAD' 
+UNION ALL SELECT '2021-01-25', 1.2777, 'CAD' 
+UNION ALL SELECT '2021-02-01', 1.2751, 'CAD' 
+UNION ALL SELECT '2021-02-08', 1.2694, 'CAD' 
+UNION ALL SELECT '2021-02-15', 1.261, 'CAD' 
+UNION ALL SELECT '2021-02-22', 1.2739, 'CAD' 
+UNION ALL SELECT '2021-03-01', 1.2655, 'CAD' 
+UNION ALL SELECT '2021-03-08', 1.2471, 'CAD' 
+UNION ALL SELECT '2021-03-15', 1.2497, 'CAD' 
+UNION ALL SELECT '2021-03-22', 1.2576, 'CAD' 
+UNION ALL SELECT '2021-03-29', 1.2573, 'CAD' 
+UNION ALL SELECT '2021-04-05', 1.2527, 'CAD' 
+UNION ALL SELECT '2021-04-12', 1.2504, 'CAD' 
+UNION ALL SELECT '2021-04-19', 1.2475, 'CAD' 
+UNION ALL SELECT '2021-04-26', 1.2289, 'CAD' 
+UNION ALL SELECT '2021-05-03', 1.213, 'CAD' 
+UNION ALL SELECT '2021-05-10', 1.2102, 'CAD' 
+UNION ALL SELECT '2021-05-17', 1.2066, 'CAD' 
+UNION ALL SELECT '2021-05-24', 1.2068, 'CAD' 
+UNION ALL SELECT '2021-05-31', 1.2079, 'CAD' 
+UNION ALL SELECT '2021-06-07', 1.2155, 'CAD' 
+UNION ALL SELECT '2021-06-14', 1.2462, 'CAD' 
+UNION ALL SELECT '2021-06-21', 1.2294, 'CAD' 
+UNION ALL SELECT '2021-06-28', 1.2319, 'CAD' 
+UNION ALL SELECT '2021-07-05', 1.2446, 'CAD' 
+UNION ALL SELECT '2021-07-12', 1.2611, 'CAD' 
+UNION ALL SELECT '2021-07-19', 1.2561, 'CAD' 
+UNION ALL SELECT '2021-07-26', 1.247, 'CAD' 
+UNION ALL SELECT '2021-08-02', 1.2552, 'CAD' 
+UNION ALL SELECT '2021-08-09', 1.2513, 'CAD' 
+UNION ALL SELECT '2021-08-16', 1.2821, 'CAD' 
+UNION ALL SELECT '2021-08-23', 1.2626, 'CAD' 
+UNION ALL SELECT '2021-08-30', 1.2526, 'CAD' 
+UNION ALL SELECT '2021-09-06', 1.2689, 'CAD' 
+UNION ALL SELECT '2021-09-13', 1.2766, 'CAD' 
+UNION ALL SELECT '2021-09-20', 1.2652, 'CAD' 
+UNION ALL SELECT '2021-09-27', 1.2647, 'CAD' 
+UNION ALL SELECT '2021-10-04', 1.2469, 'CAD' 
+UNION ALL SELECT '2021-10-11', 1.2366, 'CAD' 
+UNION ALL SELECT '2021-10-18', 1.2367, 'CAD' 
+UNION ALL SELECT '2021-10-25', 1.2387, 'CAD' 
+UNION ALL SELECT '2021-11-01', 1.2454, 'CAD' 
+UNION ALL SELECT '2021-11-08', 1.2542, 'CAD' 
+UNION ALL SELECT '2021-11-15', 1.2638, 'CAD' 
+UNION ALL SELECT '2021-11-22', 1.2786, 'CAD' 
+UNION ALL SELECT '2021-11-29', 1.2842, 'CAD' 
+UNION ALL SELECT '2021-12-06', 1.272, 'CAD' 
+UNION ALL SELECT '2021-12-13', 1.2886, 'CAD' 
+UNION ALL SELECT '2021-12-20', 1.281, 'CAD' 
+UNION ALL SELECT '2021-12-27', 1.2634, 'CAD' 
+UNION ALL SELECT '2020-12-28', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-01-04', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-01-11', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-01-18', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-01-25', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-02-01', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-02-08', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-02-15', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-02-22', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-03-01', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-03-08', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-03-15', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-03-22', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-03-29', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-04-05', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-04-12', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-04-19', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-04-26', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-05-03', 1501.55, 'LBP' 
+UNION ALL SELECT '2021-05-10', 1501.5, 'LBP' 
+UNION ALL SELECT '2021-05-17', 1501.7, 'LBP' 
+UNION ALL SELECT '2021-05-24', 1501.7, 'LBP' 
+UNION ALL SELECT '2021-05-31', 1501.5, 'LBP' 
+UNION ALL SELECT '2021-06-07', 1501.5, 'LBP' 
+UNION ALL SELECT '2021-06-14', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-06-21', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-06-28', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-07-05', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-07-12', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-07-19', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-07-26', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-08-02', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-08-09', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-08-16', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-08-23', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-08-30', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-09-06', 1502.49, 'LBP' 
+UNION ALL SELECT '2021-09-13', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-09-20', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-09-27', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-10-04', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-10-11', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-10-18', 1503.49, 'LBP' 
+UNION ALL SELECT '2021-10-25', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-11-01', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-11-08', 1504.49, 'LBP' 
+UNION ALL SELECT '2021-11-15', 1505.5, 'LBP' 
+UNION ALL SELECT '2021-11-22', 1503.99, 'LBP' 
+UNION ALL SELECT '2021-11-29', 1503.99, 'LBP' 
+UNION ALL SELECT '2021-12-06', 1505.7, 'LBP' 
+UNION ALL SELECT '2021-12-13', 1505.49, 'LBP' 
+UNION ALL SELECT '2021-12-20', 1507, 'LBP' 
+UNION ALL SELECT '2021-12-27', 1505.7, 'LBP' 
+UNION ALL SELECT '2020-12-28', 1084.73, 'KRW' 
+UNION ALL SELECT '2021-01-04', 1092.93, 'KRW' 
+UNION ALL SELECT '2021-01-11', 1103.27, 'KRW' 
+UNION ALL SELECT '2021-01-18', 1105.41, 'KRW' 
+UNION ALL SELECT '2021-01-25', 1117.64, 'KRW' 
+UNION ALL SELECT '2021-02-01', 1116.77, 'KRW' 
+UNION ALL SELECT '2021-02-08', 1102.59, 'KRW' 
+UNION ALL SELECT '2021-02-15', 1104.27, 'KRW' 
+UNION ALL SELECT '2021-02-22', 1123.89, 'KRW' 
+UNION ALL SELECT '2021-03-01', 1128, 'KRW' 
+UNION ALL SELECT '2021-03-08', 1136, 'KRW' 
+UNION ALL SELECT '2021-03-15', 1129.12, 'KRW' 
+UNION ALL SELECT '2021-03-22', 1128.52, 'KRW' 
+UNION ALL SELECT '2021-03-29', 1128.64, 'KRW' 
+UNION ALL SELECT '2021-04-05', 1120.98, 'KRW' 
+UNION ALL SELECT '2021-04-12', 1116.5, 'KRW' 
+UNION ALL SELECT '2021-04-19', 1114.72, 'KRW' 
+UNION ALL SELECT '2021-04-26', 1117.16, 'KRW' 
+UNION ALL SELECT '2021-05-03', 1111.23, 'KRW' 
+UNION ALL SELECT '2021-05-10', 1125.79, 'KRW' 
+UNION ALL SELECT '2021-05-17', 1127.63, 'KRW' 
+UNION ALL SELECT '2021-05-24', 1113.08, 'KRW' 
+UNION ALL SELECT '2021-05-31', 1110.52, 'KRW' 
+UNION ALL SELECT '2021-06-07', 1116.4, 'KRW' 
+UNION ALL SELECT '2021-06-14', 1134.94, 'KRW' 
+UNION ALL SELECT '2021-06-21', 1127.12, 'KRW' 
+UNION ALL SELECT '2021-06-28', 1130.53, 'KRW' 
+UNION ALL SELECT '2021-07-05', 1143.73, 'KRW' 
+UNION ALL SELECT '2021-07-12', 1141.51, 'KRW' 
+UNION ALL SELECT '2021-07-19', 1151.52, 'KRW' 
+UNION ALL SELECT '2021-07-26', 1151.41, 'KRW' 
+UNION ALL SELECT '2021-08-02', 1144.93, 'KRW' 
+UNION ALL SELECT '2021-08-09', 1161.37, 'KRW' 
+UNION ALL SELECT '2021-08-16', 1175.15, 'KRW' 
+UNION ALL SELECT '2021-08-23', 1161.23, 'KRW' 
+UNION ALL SELECT '2021-08-30', 1154.28, 'KRW' 
+UNION ALL SELECT '2021-09-06', 1170.23, 'KRW' 
+UNION ALL SELECT '2021-09-13', 1180.69, 'KRW' 
+UNION ALL SELECT '2021-09-20', 1179.68, 'KRW' 
+UNION ALL SELECT '2021-09-27', 1180.35, 'KRW' 
+UNION ALL SELECT '2021-10-04', 1196.79, 'KRW' 
+UNION ALL SELECT '2021-10-11', 1182.07, 'KRW' 
+UNION ALL SELECT '2021-10-18', 1177.48, 'KRW' 
+UNION ALL SELECT '2021-10-25', 1174.47, 'KRW' 
+UNION ALL SELECT '2021-11-01', 1181.05, 'KRW' 
+UNION ALL SELECT '2021-11-08', 1179.2, 'KRW' 
+UNION ALL SELECT '2021-11-15', 1187.1, 'KRW' 
+UNION ALL SELECT '2021-11-22', 1194.43, 'KRW' 
+UNION ALL SELECT '2021-11-29', 1180, 'KRW' 
+UNION ALL SELECT '2021-12-06', 1180.86, 'KRW' 
+UNION ALL SELECT '2021-12-13', 1187.7, 'KRW' 
+UNION ALL SELECT '2021-12-20', 1185.99, 'KRW' 
+UNION ALL SELECT '2021-12-27', 1187.96, 'KRW' 
+
+/*
+SELECT * FROM #locations
+SELECT * FROM #classes
+SELECT * FROM #instructors
+SELECT * FROM #timesheet
+SELECT * FROM #fxrate
+*/
+
+
+
+
+
+
+-------------------------------------------------------------------------------------------------
+-- Begin
+-------------------------------------------------------------------------------------------------
+-- What is the monthly average exchange rate of each currency?
+-- For simplicity sake, do not calculate weighted average.
+-- Simply group the available rows by calendar year by currency and calculate an average number.
+
+IF OBJECT_ID('tempdb.dbo.#monthlyAvgFxrate') IS NOT NULL DROP TABLE #monthlyAvgFxrate
+CREATE TABLE #monthlyAvgFxrate
+(
+    CalendarMonth INT -- Stored in "yyyyMM" format
+    ,Rate FLOAT
+    ,CurrencyCode NVARCHAR(3)
+)
+
+-- Result set is below.  Write SQL statements that produce the same result and insert into provided table
+/*
+CalendarMonth	Rate	CurrencyCode
+202012	1.2727	CAD
+202012	1084.73	KRW
+202012	1505.7	LBP
+202101	1.2731750000000002	CAD
+202101	1104.8125	KRW
+202101	1505.6499999999999	LBP
+202102	1.2698500000000001	CAD
+202102	1111.8799999999999	KRW
+202102	1505.6	LBP
+202103	1.25544	CAD
+202103	1130.056	KRW
+202103	1505.62	LBP
+202104	1.244875	CAD
+202104	1117.34	KRW
+202104	1505.6	LBP
+202105	1.2088999999999999	CAD
+202105	1117.65	KRW
+202105	1501.59	LBP
+202106	1.23075	CAD
+202106	1127.2475	KRW
+202106	1504.6	LBP
+202107	1.2522	CAD
+202107	1147.0425	KRW
+202107	1505.6499999999999	LBP
+202108	1.2607599999999999	CAD
+202108	1159.392	KRW
+202108	1505.58	LBP
+202109	1.26885	CAD
+202109	1177.7375000000002	KRW
+202109	1504.8475	LBP
+202110	1.239725	CAD
+202110	1182.7024999999999	KRW
+202110	1505.0475	LBP
+202111	1.26524	CAD
+202111	1184.356	KRW
+202111	1504.694	LBP
+202112	1.2762499999999999	CAD
+202112	1185.6275	KRW
+202112	1505.9725	LBP
+*/
+
+-- ## BEGIN SOLUTION ## --
+SELECT MONTH(EffectiveDate) AS CalendarMonth, YEAR(EffectiveDate) AS CalendarYear, AVG(Rate) AS Rate, CurrencyCode
+INTO #AvgRates
+FROM #fxrate
+GROUP BY MONTH(EffectiveDate), YEAR(EffectiveDate), CurrencyCode
+
+INSERT INTO #monthlyAvgFxrate
+SELECT CAST(FORMAT(DATEFROMPARTS(CalendarYear, CalendarMonth, 01), 'yyyyMM')AS INT) AS CalendarMonth, Rate, CurrencyCode
+FROM #AvgRates
+
+
+
+-- ## END SOLUTION ## --
+
+SELECT * FROM #monthlyAvgFxrate ORDER BY CalendarMonth, CurrencyCode
+
+
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------------------------
+-- Based on the available timesheet data and instructor's salary (cost) information, what is the cost rate of each instructor in USD in 2021 April?
+-- Cost rate is calculated by total cost (salary) divided by number of total hours.
+-- Instructors are paid monthly in equal amounts adding up to their total salary each year.
+-- Use the monthly average exchange rate for currency conversion.
+-------------------------------------------------------------------------------------------------
+IF OBJECT_ID('tempdb.dbo.#InstructorCostRate') IS NOT NULL DROP TABLE #InstructorCostRate
+CREATE TABLE #InstructorCostRate
+(
+    CalendarMonth INT
+    ,InstructorCode NVARCHAR(5)
+    ,CostRateInUSD FLOAT
+)
+
+-- Result set is below.  Write SQL statements that produce the same result and insert into provided table
+/*
+CalendarMonth	InstructorCode	CostRateInUSD
+202104	SHM	25.671784558303006
+202104	RJR	27.30888930109854
+202104	TCH	33.80754043381836
+202104	SDN	37.30869459680422
+202104	YSH	43.60270426371058
+202104	JYZ	46.25175756678754
+202104	TNG	50.54067593832839
+202104	SZB	51.53222481791948
+202104	TMJ	51.63582286847325
+*/
+-- ## BEGIN SOLUTION ## --
+
+SELECT * FROM #instructors
+SELECT * FROM #timesheet
+
+--Finds the total hours per instructor in April 2021
+SELECT MONTH(WorkDate) AS WorkMonth, YEAR(WorkDate) AS WorkYear, SUM(BaseHours) As TotalHours, InstructorCode
+INTO #HoursInApril2021
+FROM #timesheet
+WHERE WorkDate BETWEEN '20210401' AND '20210430'
+GROUP BY InstructorCode, MONTH(WorkDate), YEAR(WorkDate)
+
+--Joins with the instructors table to get salary
+SELECT CAST(FORMAT(DATEFROMPARTS(H.WorkYear, H.WorkMonth, 01), 'yyyyMM')AS INT) AS CalendarMonth, H.InstructorCode, (I.Salary / 12 / H.TotalHours) AS CostRate, LocationCode
+INTO #CostRate
+FROM #HoursInApril2021 H
+	INNER JOIN #instructors I ON I.InstructorCode = H.InstructorCode
+
+--Joins with Location to get Currency Code
+SELECT CalendarMonth, C.InstructorCode, C.CostRate, L.CurrencyCode
+INTO #CostRateWithCurrency
+FROM #CostRate C
+	INNER JOIN #locations L ON L.LocationCode = C.LocationCode
+
+--Joins with monthly conversion rate to calculate final rate
+INSERT INTO #InstructorCostRate
+SELECT C.CalendarMonth, C.InstructorCode, (C.CostRate / ISNULL(M.Rate, 1)) AS CostRateInUSD
+FROM #CostRateWithCurrency C
+	LEFT JOIN #monthlyAvgFxrate M ON C.CurrencyCode = M.CurrencyCode AND M.CalendarMonth = '202104'
+
+-- ## END SOLUTION ## --
+
+SELECT * FROM #InstructorCostRate ORDER BY CostRateInUSD 
+
+
+
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------------------------
+-- Based on the available timesheet data, what is the ratio of each instructor's private hours over total hours?
+-------------------------------------------------------------------------------------------------
+IF OBJECT_ID('tempdb.dbo.#PrivateHoursRatio') IS NOT NULL DROP TABLE #PrivateHoursRatio
+CREATE TABLE #PrivateHoursRatio
+(
+    CalendarMonth INT
+    ,InstructorCode NVARCHAR(5)
+    ,Ratio FLOAT
+)
+-- Result set is below.  Write SQL statements that produce the same result and insert into provided table
+/*
+CalendarMonth	InstructorCode	Ratio
+202104	TCH	0.602315140368908
+202104	TMJ	0.5888962326503637
+202104	TNG	0.5295583238958097
+202104	SZB	0.5184141816682698
+202104	YSH	0.5079138742335664
+202104	SDN	0.5039013515396407
+202104	JYZ	0.4999629985939466
+202104	RJR	0.455635936437272
+202104	SHM	0.3559922198394095
+*/
+-- ## BEGIN SOLUTION ## --
+
+
+
+SELECT * FROM #instructors
+SELECT * FROM #timesheet
+SELECT * FROM #HoursInApril2021
+
+SELECT 
+	MONTH(WorkDate)		AS WorkMonth, 
+	YEAR(WorkDate)		AS WorkYear,	
+	SUM(BaseHours)		AS TotalHours, 
+	InstructorCode		AS InstructorCode, 
+	HoursType			AS HoursType
+INTO #PrivateTimeByInstructor
+FROM 
+	#timesheet
+WHERE 
+	WorkDate BETWEEN '20210401' AND '20210430' 
+	AND HoursType = 'Private'
+GROUP BY 
+	InstructorCode, 
+	MONTH(WorkDate), 
+	YEAR(WorkDate), 
+	HoursType
+
+
+INSERT INTO #PrivateHoursRatio
+SELECT CAST(FORMAT(DATEFROMPARTS(H.WorkYear, H.WorkMonth, 01), 'yyyyMM') AS INT) AS CalendarMonth, H.InstructorCode, (P.TotalHours / H.TotalHours) AS Ratio
+FROM #HoursInApril2021 H
+	INNER JOIN #PrivateTimeByInstructor P ON P.InstructorCode = H.InstructorCode
+
+-- ## END SOLUTION ## --
+
+SELECT * FROM #PrivateHoursRatio ORDER BY Ratio DESC
+
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------------------------
+-- How much revenue did each instructor generate from their Private lessons in USD, using the monthly average exchange rate?
+-- Apply each instructor's rate to their Private hours as well as discounts.
+-------------------------------------------------------------------------------------------------
+IF OBJECT_ID('tempdb.dbo.#RevenueFromPrivateLesson') IS NOT NULL DROP TABLE #RevenueFromPrivateLesson
+CREATE TABLE #RevenueFromPrivateLesson
+(
+    CalendarMonth INT
+    ,InstructorCode NVARCHAR(5)
+    ,RevenueInUSD FLOAT
+)
+
+-- Result set is below.  Write SQL statements that produce the same result and insert into provided table
+/*
+CalendarMonth	InstructorCode	RevenueInUSD
+202104	RJR	56739.19999999999
+202104	SZB	53914.4
+202104	JYZ	52364.8
+202104	TMJ	50988.799999999996
+202104	TNG	49666.19138467717
+202104	SDN	45404.07671452958
+202104	SHM	42571.26726886291
+202104	TCH	41538.799999999996
+202104	YSH	28922.07385397462
+*/
+-- ## BEGIN SOLUTION ## --
+
+SELECT * FROM #PrivateTimeByInstructor
+SELECT * FROM #instructors
+SELECT * FROM #locations
+SELECT * FROM #monthlyAvgFxrate
+SELECT * FROM #timesheet
+
+--Creates temp table with total private hours including the discount rates
+SELECT MONTH(WorkDate) AS WorkMonth, YEAR(WorkDate) AS WorkYear, SUM(BaseHours) As TotalHours, InstructorCode, HoursType, DiscountRate
+INTO #PrivateHoursDiscounted
+FROM #timesheet
+WHERE WorkDate BETWEEN '20210401' AND '20210430' AND HoursType = 'Private'
+GROUP BY InstructorCode, MONTH(WorkDate), YEAR(WorkDate), HoursType, DiscountRate
+
+--Joins private hours with discount rates to instructors to get rates for private lessons
+SELECT P.WorkMonth, P.WorkYear, P.InstructorCode, SUM(((1 - ISNULL(P.DiscountRate, 0)) * Rate) * P.TotalHours) AS Revenue, L.CurrencyCode
+INTO #PrivateRevenue
+FROM #PrivateHoursDiscounted P
+	INNER JOIN #instructors I ON I.InstructorCode = P.InstructorCode
+	INNER JOIN #locations L ON I.LocationCode = L.LocationCode
+GROUP BY P.InstructorCode, P.WorkMonth, P.WorkYear, L.CurrencyCode
+
+SELECT * FROM #monthlyAvgFxrate
+SELECT * FROM #PrivateRevenue
+
+--Joins PrivateRevenue with the monthly conversion rates
+INSERT INTO #RevenueFromPrivateLesson
+SELECT CAST(FORMAT(DATEFROMPARTS(P.WorkYear, P.WorkMonth, 01), 'yyyyMM') AS INT) AS CalendarMonth, P.InstructorCode, P.Revenue / ISNULL(M.Rate, 1) AS RevenueInUSD
+FROM #PrivateRevenue P
+	LEFT JOIN #monthlyAvgFxrate M ON M.CurrencyCode = P.CurrencyCode AND M.CalendarMonth = '202104'
+-- ## END SOLUTION ## --
+
+SELECT * FROM #RevenueFromPrivateLesson ORDER BY RevenueInUSD DESC
+
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------------------------
+-- A report summarizing each instructor's revenue and cost information is being prepared for the owners.
+-- Consolidate the information for each instructor in a single table
+-- All amounts are reported in USD
+-------------------------------------------------------------------------------------------------
+IF OBJECT_ID('tempdb.dbo.#InstructorReport') IS NOT NULL DROP TABLE #InstructorReport
+CREATE TABLE #InstructorReport
+(
+    CalendarMonth INT
+    ,InstructorName NVARCHAR(100)
+    ,LocationName NVARCHAR(100)
+    ,TotalHours FLOAT
+    ,PrivateHoursRatio FLOAT
+    ,PrivateRevenue FLOAT
+    ,CostRate FLOAT
+)
+
+-- Result set is below.  Write SQL statements that produce the same result and insert into provided table
+/*
+CalendarMonth	InstructorName	LocationName	TotalHours	PrivateHoursRatio	PrivateRevenue	CostRate
+202104	Tom Jones	Reno	121.03999999999996	0.5888962326503637	50988.799999999996	51.63582286847325
+202104	Joe Zoghbi	Phoenix	135.13	0.4999629985939466	52364.8	46.25175756678754
+202104	Soo Yoon	Daegu	140.25999999999996	0.5079138742335664	28922.07385397462	43.60270426371058
+202104	Truman Chan	Reno	184.86999999999998	0.602315140368908	41538.799999999996	33.80754043381836
+202104	Timmy Ngo	Toronto	132.45000000000002	0.5295583238958097	49666.19138467717	50.54067593832839
+202104	Samer Hamam	Beirut	200.51	0.3559922198394095	42571.26726886291	25.671784558303006
+202104	Saad Nahlous	Ottawa	143.53999999999996	0.5039013515396407	45404.07671452958	37.30869459680422
+202104	Suzan Balaa	Long Beach	145.54	0.5184141816682698	53914.4	51.53222481791948
+202104	Rejane Rizkallah	San Diego	161.73000000000002	0.455635936437272	56739.19999999999	27.30888930109854
+*/
+-- ## BEGIN SOLUTION ## --
+
+--REQUIRED TABLES
+SELECT * FROM #locations
+SELECT * FROM #instructors
+SELECT * FROM #RevenueFromPrivateLesson ORDER BY RevenueInUSD DESC
+SELECT * FROM #InstructorCostRate ORDER BY CostRateInUSD 
+SELECT * FROM #PrivateHoursRatio ORDER BY Ratio DESC
+SELECT * FROM #timesheet
+SELECT * FROM #HoursInApril2021
+
+INSERT INTO #InstructorReport
+SELECT RPL.CalendarMonth, I.InstructorName, L.LocationName, H.TotalHours, PHR.Ratio AS PrivateHoursRatio, RPL.RevenueInUSD AS PrivateRevenue, ICR.CostRateInUSD AS CostRate
+FROM #RevenueFromPrivateLesson AS RPL
+	INNER JOIN #instructors I ON I.InstructorCode = RPL.InstructorCode
+	INNER JOIN #HoursInApril2021 H ON H.InstructorCode = RPL.InstructorCode
+	INNER JOIN #PrivateHoursRatio PHR ON PHR.InstructorCode = RPL.InstructorCode
+	INNER JOIN #locations L ON L.LocationCode = I.LocationCode
+	INNER JOIN #InstructorCostRate ICR ON ICR.InstructorCode = RPL.InstructorCode
+	
+
+-- ## END SOLUTION ## --
+
+SELECT * FROM #InstructorReport ORDER BY InstructorName
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------------------------
+-- Based on available InstructorReport data, you are choosing an instructor to be given an instructor of the month award.
+-- The criteria is up to you. Who do you choose and what your reasoning? 
+-- This is not a trick question.  There is no right or wrong answer.
+-------------------------------------------------------------------------------------------------
+-- ## BEGIN SOLUTION ## --
+/*
+Indicate which instructor is receiving the award and describe your reasoning here.
+
+I believe the instructor of the month award should go to those who put in the most work to spread the joy of martial arts rather than the total revenue generated.
+While revenue is still taken into consideration, it's not the main factor when deciding who gets the award.
+Although Samer Hamam has the highest amount of hours in the month of April, Truman Chan has high hours plus a higher private hour ratio.
+Overall Truman Chan would receive the award for the instructor of the month with Samer Hamam as a close second.
+
+*/
+-- ## END SOLUTION ## --
